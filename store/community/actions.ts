@@ -73,28 +73,30 @@ export const createCommunity = (communityData: CommunityFormData) => {
       }
       */
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create a mock community with the form data
-      const newCommunity: Community = {
-        id: `community${Date.now()}`,
-        name: communityData.name,
-        description: communityData.description,
-        image: 'https://images.unsplash.com/photo-1536922246289-88c42f957773?q=80&w=3280&auto=format&fit=crop',
-        category: communityData.category,
-        location: communityData.location,
-        members: 1, // Start with 1 member (the creator)
-        joined: true, // Creator is automatically joined
-        guidelines: communityData.guidelines || ''
-      };
-      
-      dispatch({ 
-        type: CommunityActionTypes.CREATE_COMMUNITY_SUCCESS,
-        payload: newCommunity
+      // Simulate API call with a longer delay to better simulate real-world conditions
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Create a mock community with the form data
+          const newCommunity: Community = {
+            id: `community${Date.now()}`,
+            name: communityData.name,
+            description: communityData.description,
+            image: 'https://images.unsplash.com/photo-1536922246289-88c42f957773?q=80&w=3280&auto=format&fit=crop',
+            category: communityData.category,
+            location: communityData.location,
+            members: 1, // Start with 1 member (the creator)
+            joined: true, // Creator is automatically joined
+            guidelines: communityData.guidelines || ''
+          };
+          
+          dispatch({ 
+            type: CommunityActionTypes.CREATE_COMMUNITY_SUCCESS,
+            payload: newCommunity
+          });
+          
+          resolve(true);
+        }, 1500); // Increased delay to 1.5 seconds to better simulate API latency
       });
-      
-      return true;
       
     } catch (error) {
       // Handle error

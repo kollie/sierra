@@ -21,11 +21,7 @@ const initialState: UserOnboardingState = {
     locationSharing: false
   },
   status: {
-    loading: false,
-    error: null,
-    success: false,
-    currentStep: 0,
-    completed: false
+    currentStep: 0
   }
 };
 
@@ -35,7 +31,6 @@ export const onboardingReducer = (
   action: OnboardingAction
 ): UserOnboardingState => {
   switch (action.type) {
-    // Personal info actions
     case OnboardingActionTypes.SET_FIRST_NAME:
       return {
         ...state,
@@ -54,7 +49,6 @@ export const onboardingReducer = (
         }
       };
       
-    // Account info actions
     case OnboardingActionTypes.SET_EMAIL:
       return {
         ...state,
@@ -73,33 +67,12 @@ export const onboardingReducer = (
         }
       };
       
-    // Preferences actions
     case OnboardingActionTypes.SET_INTERESTS:
       return {
         ...state,
         preferences: {
           ...state.preferences,
           interests: action.payload
-        }
-      };
-      
-    case OnboardingActionTypes.ADD_INTEREST:
-      return {
-        ...state,
-        preferences: {
-          ...state.preferences,
-          interests: [...state.preferences.interests, action.payload]
-        }
-      };
-      
-    case OnboardingActionTypes.REMOVE_INTEREST:
-      return {
-        ...state,
-        preferences: {
-          ...state.preferences,
-          interests: state.preferences.interests.filter(
-            interest => interest !== action.payload
-          )
         }
       };
       
@@ -130,34 +103,6 @@ export const onboardingReducer = (
         }
       };
       
-    // Status actions
-    case OnboardingActionTypes.SET_LOADING:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          loading: action.payload
-        }
-      };
-      
-    case OnboardingActionTypes.SET_ERROR:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          error: action.payload
-        }
-      };
-      
-    case OnboardingActionTypes.SET_SUCCESS:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          success: action.payload
-        }
-      };
-      
     case OnboardingActionTypes.SET_CURRENT_STEP:
       return {
         ...state,
@@ -167,49 +112,6 @@ export const onboardingReducer = (
         }
       };
       
-    case OnboardingActionTypes.SET_COMPLETED:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          completed: action.payload
-        }
-      };
-      
-    // Form submission actions
-    case OnboardingActionTypes.SUBMIT_ONBOARDING_REQUEST:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          loading: true,
-          error: null
-        }
-      };
-      
-    case OnboardingActionTypes.SUBMIT_ONBOARDING_SUCCESS:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          loading: false,
-          success: true,
-          error: null
-        }
-      };
-      
-    case OnboardingActionTypes.SUBMIT_ONBOARDING_FAILURE:
-      return {
-        ...state,
-        status: {
-          ...state.status,
-          loading: false,
-          success: false,
-          error: action.payload
-        }
-      };
-      
-    // Reset action
     case OnboardingActionTypes.RESET_ONBOARDING:
       return initialState;
       
