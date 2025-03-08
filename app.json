@@ -9,7 +9,19 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chapters.app",
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "We need access to your calendar to add events you're interested in attending.",
+        "NSRemindersUsageDescription": "We need access to your reminders to set event notifications."
+      }
+    },
+    "android": {
+      "package": "com.chapters.app",
+      "permissions": [
+        "WRITE_CALENDAR",
+        "READ_CALENDAR"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -22,6 +34,12 @@
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends.",
           "cameraPermission": "The app accesses your camera to let you take photos for events."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "The app needs to access your calendar to add events."
         }
       ],
       "expo-router"

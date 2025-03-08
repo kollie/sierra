@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform, Alert, Share, Linking } from 'react-native';
+import { parse } from "date-fns";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Calendar as CalendarIcon, Clock, Users, ArrowLeft, Share2, Heart } from 'lucide-react-native';
 import * as Calendar from 'expo-calendar';
-import { parse } from 'date-fns';
 import { mockEvents } from '@/data/mockData';
 import { Button } from '@/components/Button';
 import { Event } from '@/types';
@@ -12,93 +12,128 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   
-  // Find the event by id or use the first event as fallback
   const eventId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
   const event = mockEvents.find(e => e.id === eventId) || mockEvents[0];
 
-  const handleJoinAndAddToCalendar = async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Calendar integration is not available on web');
-      return;
-    }
-
+  const handleShare = async () => {
     try {
-      // Request calendar permissions
-      const { status } = await Calendar.requestCalendarPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please allow calendar access to add this event.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+      const eventUrl = `chapters://event/${event.id}`;
+      const message = `Join me at "${event.title}"!\n\n📅 ${event.date}\n⏰ ${event.time}\n📍 ${event.location}\n\nOpen in app: ${eventUrl}`;
 
-      // Parse event date and time
-      const eventDate = parse(event.date, 'MMMM d, yyyy', new Date());
-      const [hours, minutes] = event.time.split(' ')[0].split(':');
-      const isPM = event.time.includes('PM');
-      
-      const startDate = new Date(eventDate);
-      startDate.setHours(
-        isPM ? parseInt(hours) + 12 : parseInt(hours),
-        parseInt(minutes)
-      );
-      
-      const endDate = new Date(startDate);
-      endDate.setHours(endDate.getHours() + 2); // Default 2-hour duration
-
-      // Open native calendar app with pre-filled event details
-      if (Platform.OS === 'ios') {
-        // For iOS, use the ical URL scheme with event details
-        const eventDetails = {
-          title: encodeURIComponent(event.title),
-          location: encodeURIComponent(event.location),
-          notes: encodeURIComponent(event.description),
-          startDate: startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
-          endDate: endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
-        };
-
-        const url = `webcal://p44-caldav.icloud.com/published/2/MTAwMjgzNDk5OTEwMDI4M0JvbGl2aWFAaWNsb3VkLmNvbQ/new-event/?title=${eventDetails.title}&location=${eventDetails.location}&notes=${eventDetails.notes}&startDate=${eventDetails.startDate}&endDate=${eventDetails.endDate}`;
-        
-        await Linking.openURL(url);
-      } else {
-        // For Android, get the default calendar first
-        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-        const defaultCalendar = calendars.find(calendar => calendar.isPrimary) || calendars[0];
-
-        if (!defaultCalendar) {
-          throw new Error('No calendar found');
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({
+            title: event.title,
+            text: message,
+            url: eventUrl,
+          });
+        } else {
+          await navigator.clipboard.writeText(message);
+          Alert.alert('Success', 'Event details copied to clipboard!');
         }
-
-        // Create the event
-        const eventId = await Calendar.createEventAsync(defaultCalendar.id, {
+      } else {
+        const result = await Share.share({
+          message,
           title: event.title,
-          location: event.location,
-          notes: event.description,
-          startDate: startDate,
-          endDate: endDate,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          alarms: [{
-            relativeOffset: -60, // Reminder 1 hour before
-            method: Calendar.AlarmMethod.ALERT,
-          }],
+          url: eventUrl,
         });
 
-        // Open the calendar app to the event
-        await Calendar.openEventInCalendar(eventId);
+        if (result.action === Share.sharedAction) {
+          console.log("Event shared successfully!");
+        }
       }
-
     } catch (error) {
-      console.error('Calendar error:', error);
-      Alert.alert(
-        'Error',
-        'Failed to add event to calendar. Please try again.',
-        [{ text: 'OK' }]
-      );
+      console.error('Error sharing:', error);
+      Alert.alert('Error', 'Failed to share event. Please try again.');
     }
   };
+
+  
+const createWritableCalendar = async () => {
+  const defaultCalendarSource =
+    Platform.OS === "ios"
+      ? await Calendar.getDefaultCalendarAsync()
+      : { isLocalAccount: true, name: "Expo Calendar" };
+
+  return await Calendar.createCalendarAsync({
+    title: "Expo Calendar",
+    color: "blue",
+    entityType: Calendar.EntityTypes.EVENT,
+    source: defaultCalendarSource,
+    name: "Expo Calendar",
+    ownerAccount: "personal",
+    accessLevel: Calendar.CalendarAccessLevel.OWNER,
+  });
+};
+
+  const handleJoinAndAddToCalendar = async () => {
+  console.log("Join button clicked");
+
+  const { status } = await Calendar.requestCalendarPermissionsAsync();
+  console.log("Permission status:", status);
+
+  if (status !== "granted") {
+    Alert.alert(
+      "Permission Denied",
+      "Calendar permissions are required to add events."
+    );
+    return;
+  }
+
+  try {
+    // Extract the date and start time (remove time range if present)
+    const dateString = event.date; // Example: "May 15, 2025"
+    let timeString = event.time; // Example: "6:00 PM - 9:00 PM"
+
+    // Extract only the first time (before the dash)
+    timeString = timeString.split(" - ")[0].trim(); // "6:00 PM"
+
+    // Ensure correct format before parsing
+    const dateTimeString = `${dateString} ${timeString}`;
+    console.log("Combined date and time:", dateTimeString);
+
+    // Use correct format for parsing
+    const startDate = parse(dateTimeString, "MMMM d, yyyy h:mm a", new Date());
+    console.log("Parsed start date:", startDate);
+
+    // Check if parsing was successful
+    if (isNaN(startDate.getTime())) {
+      throw new Error("Invalid date or time format. Please check event details.");
+    }
+
+    // Set end time (2 hours after start time)
+    const endDate = new Date(startDate);
+    endDate.setHours(startDate.getHours() + 2);
+
+    console.log("Event start date:", startDate);
+    console.log("Event end date:", endDate);
+
+    // Open the calendar interface for user to edit
+    await Calendar.createEventInCalendarAsync({
+      title: event.title,
+      startDate,
+      endDate,
+      location: event.location,
+      notes: event.description,
+    });
+
+    // console.log("Event creation interface opened in calendar");
+
+    // Show success message
+    // Alert.alert(
+    //   "Success",
+    //   "Event added to your calendar! You're now attending this event.",
+    //   [{ text: "Great!" }]
+    // );
+
+  } catch (error) {
+    console.error("Error handling calendar event:", error.message);
+    Alert.alert(
+      "Error",
+      error.message || "Failed to open calendar for editing."
+    );
+  }
+};
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -119,7 +154,10 @@ export default function EventDetailScreen() {
               <TouchableOpacity style={styles.iconButton}>
                 <Heart size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton}>
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={handleShare}
+              >
                 <Share2 size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
