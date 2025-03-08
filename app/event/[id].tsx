@@ -4,93 +4,29 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Calendar as CalendarIcon, Clock, Users, ArrowLeft, Share2, Heart } from 'lucide-react-native';
 import * as Calendar from 'expo-calendar';
 import { parse } from 'date-fns';
-import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { mockEvents } from '@/data/mockData';
 import { Button } from '@/components/Button';
 import { Event } from '@/types';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { toggleLike, toggleParticipation } from '@/store/eventInteraction/actions';
-
-const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 
 export default function EventDetailScreen() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const { id } = useLocalSearchParams();
   
   // Find the event by id or use the first event as fallback
   const eventId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
   const event = mockEvents.find(e => e.id === eventId) || mockEvents[0];
 
-  // Get interaction states from Redux
-  const { likedEvents, participatingEvents, status } = useAppSelector(
-    state => state.eventInteraction
-  );
-  const isLiked = likedEvents.includes(eventId);
-  const isParticipating = participatingEvents.includes(eventId);
-
-  // Animated heart style
-  const heartStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: withSpring(isLiked ? 1.2 : 1, {
-            damping: 10,
-            stiffness: 100,
-          })
-        }
-      ]
-    };
-  });
-
-  const handleLike = async () => {
-    if (status.loading) return;
-    dispatch(toggleLike(eventId));
-  };
-
-  const handleShare = async () => {
-    try {
-      const message = `Check out this event: ${event.title}\n\nDate: ${event.date}\nTime: ${event.time}\nLocation: ${event.location}`;
-      
-      if (Platform.OS === 'web') {
-        if (navigator.share) {
-          await navigator.share({
-            title: event.title,
-            text: message,
-          });
-        } else {
-          await navigator.clipboard.writeText(message);
-          Alert.alert('Link copied to clipboard!');
-        }
-      } else {
-        const result = await Share.share({
-          message,
-          title: event.title,
-        });
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
   const handleJoinAndAddToCalendar = async () => {
-    if (status.loading) return;
-
-    const success = await dispatch(toggleParticipation(eventId));
-    if (!success) {
-      Alert.alert('Error', 'Failed to join event. Please try again.');
-      return;
-    }
-
     if (Platform.OS === 'web') {
-      Alert.alert('Success', 'You have successfully joined the event!');
+      Alert.alert('Calendar integration is not available on web');
       return;
     }
 
     try {
-      const { status: calendarStatus } = await Calendar.requestCalendarPermissionsAsync();
+      // Request calendar permissions
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
       
-      if (calendarStatus !== 'granted') {
+      if (status !== 'granted') {
         Alert.alert(
           'Permission Required',
           'Please allow calendar access to add this event.',
@@ -99,6 +35,7 @@ export default function EventDetailScreen() {
         return;
       }
 
+      // Parse event date and time
       const eventDate = parse(event.date, 'MMMM d, yyyy', new Date());
       const [hours, minutes] = event.time.split(' ')[0].split(':');
       const isPM = event.time.includes('PM');
@@ -110,33 +47,48 @@ export default function EventDetailScreen() {
       );
       
       const endDate = new Date(startDate);
-      endDate.setHours(endDate.getHours() + 2);
+      endDate.setHours(endDate.getHours() + 2); // Default 2-hour duration
 
-      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const defaultCalendar = calendars.find(cal => cal.isPrimary) || calendars[0];
+      // Open native calendar app with pre-filled event details
+      if (Platform.OS === 'ios') {
+        // For iOS, use the ical URL scheme with event details
+        const eventDetails = {
+          title: encodeURIComponent(event.title),
+          location: encodeURIComponent(event.location),
+          notes: encodeURIComponent(event.description),
+          startDate: startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+          endDate: endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+        };
 
-      if (!defaultCalendar) {
-        throw new Error('No calendar found');
+        const url = `webcal://p44-caldav.icloud.com/published/2/MTAwMjgzNDk5OTEwMDI4M0JvbGl2aWFAaWNsb3VkLmNvbQ/new-event/?title=${eventDetails.title}&location=${eventDetails.location}&notes=${eventDetails.notes}&startDate=${eventDetails.startDate}&endDate=${eventDetails.endDate}`;
+        
+        await Linking.openURL(url);
+      } else {
+        // For Android, get the default calendar first
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        const defaultCalendar = calendars.find(calendar => calendar.isPrimary) || calendars[0];
+
+        if (!defaultCalendar) {
+          throw new Error('No calendar found');
+        }
+
+        // Create the event
+        const eventId = await Calendar.createEventAsync(defaultCalendar.id, {
+          title: event.title,
+          location: event.location,
+          notes: event.description,
+          startDate: startDate,
+          endDate: endDate,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          alarms: [{
+            relativeOffset: -60, // Reminder 1 hour before
+            method: Calendar.AlarmMethod.ALERT,
+          }],
+        });
+
+        // Open the calendar app to the event
+        await Calendar.openEventInCalendar(eventId);
       }
-
-      const eventId = await Calendar.createEventAsync(defaultCalendar.id, {
-        title: event.title,
-        location: event.location,
-        notes: event.description,
-        startDate,
-        endDate,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        alarms: [{
-          relativeOffset: -60,
-          method: Calendar.AlarmMethod.ALERT,
-        }],
-      });
-
-      Alert.alert(
-        'Success',
-        'Event has been added to your calendar!',
-        [{ text: 'OK' }]
-      );
 
     } catch (error) {
       console.error('Calendar error:', error);
@@ -164,22 +116,10 @@ export default function EventDetailScreen() {
               <ArrowLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={[styles.iconButton, isLiked && styles.likedButton]}
-                onPress={handleLike}
-                disabled={status.loading}
-              >
-                <AnimatedHeart 
-                  size={24} 
-                  color="#FFFFFF"
-                  fill={isLiked ? '#FFFFFF' : 'transparent'}
-                  style={heartStyle}
-                />
+              <TouchableOpacity style={styles.iconButton}>
+                <Heart size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={handleShare}
-              >
+              <TouchableOpacity style={styles.iconButton}>
                 <Share2 size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
@@ -239,9 +179,7 @@ export default function EventDetailScreen() {
               ))}
               {event.attendees > event.attendeeAvatars.length && (
                 <View style={styles.moreAttendeesContainer}>
-                  <Text style={styles.moreAttendeesText}>
-                    +{event.attendees - event.attendeeAvatars.length}
-                  </Text>
+                  <Text style={styles.moreAttendeesText}>+{event.attendees - event.attendeeAvatars.length}</Text>
                 </View>
               )}
             </View>
@@ -252,16 +190,12 @@ export default function EventDetailScreen() {
       <View style={styles.footer}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Price</Text>
-          <Text style={styles.price}>
-            {event.price === 0 ? 'Free' : `$${event.price}`}
-          </Text>
+          <Text style={styles.price}>{event.price === 0 ? 'Free' : `$${event.price}`}</Text>
         </View>
         <Button 
-          title={isParticipating ? "Leave Event" : "Join Event"}
+          title="Join Event" 
           onPress={handleJoinAndAddToCalendar}
-          style={[styles.joinButton, { marginBottom: 24 }]}
-          loading={status.loading}
-          variant={isParticipating ? "outline" : "primary"}
+          style={styles.joinButton}
         />
       </View>
     </SafeAreaView>
@@ -309,9 +243,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
-  },
-  likedButton: {
-    backgroundColor: '#EF4444',
   },
   content: {
     padding: 16,
@@ -400,8 +331,8 @@ const styles = StyleSheet.create({
     color: '#000080',
   },
   footer: {
+    flexDirection: 'row',
     padding: 16,
-    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',

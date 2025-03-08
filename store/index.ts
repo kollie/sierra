@@ -4,7 +4,6 @@ import { onboardingReducer } from './onboarding/reducer';
 import { eventReducer } from './event/reducer';
 import { authReducer } from './auth/reducer';
 import { communityReducer } from './community/reducer';
-import { eventInteractionReducer } from './eventInteraction/reducer';
 import { RootState } from '@/types/redux';
 
 // Configure the Redux store
@@ -13,8 +12,7 @@ export const store = configureStore({
     onboarding: onboardingReducer,
     event: eventReducer,
     auth: authReducer,
-    community: communityReducer,
-    eventInteraction: eventInteractionReducer
+    community: communityReducer
   },
   middleware: (getDefaultMiddleware) => 
     getDefaultMiddleware({
