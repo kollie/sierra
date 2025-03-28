@@ -1,35 +1,14 @@
 import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Platform,
-  Modal,
-  FlatList,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-  Search,
-  MapPin,
-  Filter,
-  X,
-  ChevronDown,
-  Navigation,
-} from 'lucide-react-native';
+import { Search, MapPin, Filter, X, ChevronDown, Navigation } from 'lucide-react-native';
 import { mockEvents } from '@/data/mockData';
 import { EventCard } from '@/components/EventCard';
 import { CommunityCard } from '@/components/CommunityCard';
 import { SearchBar } from '@/components/SearchBar';
 import { useAppDispatch, useAppSelector } from '@/store';
-import {
-  fetchCommunities,
-  toggleJoinCommunity,
-} from '@/store/community/actions';
-import { CategoryFilter } from '@/components/CategoryFilter';
+import { fetchCommunities, toggleJoinCommunity } from '@/store/community/actions';
 
 // Popular cities for location selection
 const popularLocations = [
@@ -53,12 +32,8 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('San Francisco, CA');
   const [filteredEvents, setFilteredEvents] = useState(mockEvents.slice(0, 3));
-  const [filteredNearbyEvents, setFilteredNearbyEvents] = useState(
-    mockEvents.slice(3, 6)
-  );
-  const [filteredCommunities, setFilteredCommunities] = useState<
-    typeof communities
-  >([]);
+  const [filteredNearbyEvents, setFilteredNearbyEvents] = useState(mockEvents.slice(3, 6));
+  const [filteredCommunities, setFilteredCommunities] = useState<typeof communities>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Fetch communities on component mount
@@ -188,6 +163,7 @@ export default function HomeScreen() {
                 <CommunityCard
                   key={community.id}
                   community={community}
+                  onPress={() => router.push(`/community/${community.id}`)}
                   onJoin={() => handleJoinCommunity(community.id)}
                 />
               ))}

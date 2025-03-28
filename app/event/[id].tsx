@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform, Alert, Share, Linking } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, Share, Linking, Platform } from 'react-native';
 import { parse } from "date-fns";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,13 +7,16 @@ import * as Calendar from 'expo-calendar';
 import { mockEvents } from '@/data/mockData';
 import { Button } from '@/components/Button';
 import { Event } from '@/types';
+import { useLikedEvents } from '@/hooks/useLikedEvents';
 
 export default function EventDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { isEventLiked, toggleLikeEvent } = useLikedEvents();
   
   const eventId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
   const event = mockEvents.find(e => e.id === eventId) || mockEvents[0];
+  const isLiked = isEventLiked(event.id);
 
   const handleShare = async () => {
     try {
@@ -48,92 +51,89 @@ export default function EventDetailScreen() {
     }
   };
 
-  
-const createWritableCalendar = async () => {
-  const defaultCalendarSource =
-    Platform.OS === "ios"
-      ? await Calendar.getDefaultCalendarAsync()
-      : { isLocalAccount: true, name: "Expo Calendar" };
+  const handleLike = async () => {
+    const newLikedState = await toggleLikeEvent(event);
+    // Optional: Show feedback to user
+    if (newLikedState) {
+      Alert.alert('Added to favorites!');
+    }
+  };
 
-  return await Calendar.createCalendarAsync({
-    title: "Expo Calendar",
-    color: "blue",
-    entityType: Calendar.EntityTypes.EVENT,
-    source: defaultCalendarSource,
-    name: "Expo Calendar",
-    ownerAccount: "personal",
-    accessLevel: Calendar.CalendarAccessLevel.OWNER,
-  });
-};
+  const createWritableCalendar = async () => {
+    const defaultCalendarSource =
+      Platform.OS === "ios"
+        ? await Calendar.getDefaultCalendarAsync()
+        : { isLocalAccount: true, name: "Expo Calendar" };
+
+    return await Calendar.createCalendarAsync({
+      title: "Expo Calendar",
+      color: "blue",
+      entityType: Calendar.EntityTypes.EVENT,
+      source: defaultCalendarSource,
+      name: "Expo Calendar",
+      ownerAccount: "personal",
+      accessLevel: Calendar.CalendarAccessLevel.OWNER,
+    });
+  };
 
   const handleJoinAndAddToCalendar = async () => {
-  console.log("Join button clicked");
+    console.log("Join button clicked");
 
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
-  console.log("Permission status:", status);
+    const { status } = await Calendar.requestCalendarPermissionsAsync();
+    console.log("Permission status:", status);
 
-  if (status !== "granted") {
-    Alert.alert(
-      "Permission Denied",
-      "Calendar permissions are required to add events."
-    );
-    return;
-  }
-
-  try {
-    // Extract the date and start time (remove time range if present)
-    const dateString = event.date; // Example: "May 15, 2025"
-    let timeString = event.time; // Example: "6:00 PM - 9:00 PM"
-
-    // Extract only the first time (before the dash)
-    timeString = timeString.split(" - ")[0].trim(); // "6:00 PM"
-
-    // Ensure correct format before parsing
-    const dateTimeString = `${dateString} ${timeString}`;
-    console.log("Combined date and time:", dateTimeString);
-
-    // Use correct format for parsing
-    const startDate = parse(dateTimeString, "MMMM d, yyyy h:mm a", new Date());
-    console.log("Parsed start date:", startDate);
-
-    // Check if parsing was successful
-    if (isNaN(startDate.getTime())) {
-      throw new Error("Invalid date or time format. Please check event details.");
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Denied",
+        "Calendar permissions are required to add events."
+      );
+      return;
     }
 
-    // Set end time (2 hours after start time)
-    const endDate = new Date(startDate);
-    endDate.setHours(startDate.getHours() + 2);
+    try {
+      // Extract the date and start time (remove time range if present)
+      const dateString = event.date; // Example: "May 15, 2025"
+      let timeString = event.time; // Example: "6:00 PM - 9:00 PM"
 
-    console.log("Event start date:", startDate);
-    console.log("Event end date:", endDate);
+      // Extract only the first time (before the dash)
+      timeString = timeString.split(" - ")[0].trim(); // "6:00 PM"
 
-    // Open the calendar interface for user to edit
-    await Calendar.createEventInCalendarAsync({
-      title: event.title,
-      startDate,
-      endDate,
-      location: event.location,
-      notes: event.description,
-    });
+      // Ensure correct format before parsing
+      const dateTimeString = `${dateString} ${timeString}`;
+      console.log("Combined date and time:", dateTimeString);
 
-    // console.log("Event creation interface opened in calendar");
+      // Use correct format for parsing
+      const startDate = parse(dateTimeString, "MMMM d, yyyy h:mm a", new Date());
+      console.log("Parsed start date:", startDate);
 
-    // Show success message
-    // Alert.alert(
-    //   "Success",
-    //   "Event added to your calendar! You're now attending this event.",
-    //   [{ text: "Great!" }]
-    // );
+      // Check if parsing was successful
+      if (isNaN(startDate.getTime())) {
+        throw new Error("Invalid date or time format. Please check event details.");
+      }
 
-  } catch (error) {
-    console.error("Error handling calendar event:", error.message);
-    Alert.alert(
-      "Error",
-      error.message || "Failed to open calendar for editing."
-    );
-  }
-};
+      // Set end time (2 hours after start time)
+      const endDate = new Date(startDate);
+      endDate.setHours(startDate.getHours() + 2);
+
+      console.log("Event start date:", startDate);
+      console.log("Event end date:", endDate);
+
+      // Open the calendar interface for user to edit
+      await Calendar.createEventInCalendarAsync({
+        title: event.title,
+        startDate,
+        endDate,
+        location: event.location,
+        notes: event.description,
+      });
+    } catch (error) {
+      console.error("Error handling calendar event:", error.message);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to open calendar for editing."
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -151,8 +151,15 @@ const createWritableCalendar = async () => {
               <ArrowLeft size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.iconButton}>
-                <Heart size={24} color="#FFFFFF" />
+              <TouchableOpacity 
+                style={[styles.iconButton, isLiked && styles.likedButton]}
+                onPress={handleLike}
+              >
+                <Heart 
+                  size={24} 
+                  color="#FFFFFF"
+                  fill={isLiked ? "#FFFFFF" : "none"}
+                />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
@@ -281,6 +288,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  likedButton: {
+    backgroundColor: '#EF4444',
   },
   content: {
     padding: 16,

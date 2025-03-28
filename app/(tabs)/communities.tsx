@@ -129,7 +129,7 @@ export default function CommunitiesScreen() {
         renderItem={({ item }) => (
           <CommunityListItem 
             community={item} 
-            onPress={() => {}} 
+            onPress={() => router.push(`/community/${item.id}`)}
             onJoin={() => handleJoinCommunity(item.id)}
           />
         )}

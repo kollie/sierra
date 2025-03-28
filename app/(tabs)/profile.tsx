@@ -1,10 +1,14 @@
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, MapPin, Calendar, Users, CreditCard as Edit } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Settings, MapPin, Calendar, Users, CreditCard as Edit, Heart } from 'lucide-react-native';
 import { mockUser, mockEvents } from '@/data/mockData';
 import { EventCard } from '@/components/EventCard';
+import { useLikedEvents } from '@/hooks/useLikedEvents';
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { likedEvents } = useLikedEvents();
   const userEvents = mockEvents.filter(event => event.organizer.id === mockUser.id).slice(0, 2);
   const attendingEvents = mockEvents.slice(0, 3);
   
@@ -12,7 +16,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/settings')}>
           <Settings size={24} color="#1E293B" />
         </TouchableOpacity>
       </View>
@@ -29,7 +33,10 @@ export default function ProfileScreen() {
               <MapPin size={16} color="#64748B" />
               <Text style={styles.locationText}>{mockUser.location}</Text>
             </View>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => router.push('/edit-profile')}
+            >
               <Edit size={16} color="#000080" />
               <Text style={styles.editButtonText}>Edit Profile</Text>
             </TouchableOpacity>
@@ -48,6 +55,12 @@ export default function ProfileScreen() {
             <Text style={styles.statValue}>{mockUser.communities}</Text>
             <Text style={styles.statLabel}>Communities</Text>
           </View>
+          <View style={styles.divider} />
+          <View style={styles.statItem}>
+            <Heart size={20} color="#000080" />
+            <Text style={styles.statValue}>{likedEvents.length}</Text>
+            <Text style={styles.statLabel}>Favorites</Text>
+          </View>
         </View>
         
         <View style={styles.bioContainer}>
@@ -55,11 +68,31 @@ export default function ProfileScreen() {
           <Text style={styles.bioText}>{mockUser.bio}</Text>
         </View>
         
+        {likedEvents.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Favorite Events</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
+              {likedEvents.map(event => (
+                <EventCard 
+                  key={event.id} 
+                  event={event}
+                  onPress={() => router.push(`/event/${event.id}`)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Events</Text>
           <View style={styles.eventsContainer}>
             {userEvents.map(event => (
-              <EventCard key={event.id} event={event} variant="horizontal" />
+              <EventCard 
+                key={event.id} 
+                event={event} 
+                variant="horizontal"
+                onPress={() => router.push(`/event/${event.id}`)}
+              />
             ))}
             <TouchableOpacity style={styles.viewAllButton}>
               <Text style={styles.viewAllText}>View All</Text>
@@ -71,7 +104,11 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Attending</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
             {attendingEvents.map(event => (
-              <EventCard key={event.id} event={event} />
+              <EventCard 
+                key={event.id} 
+                event={event}
+                onPress={() => router.push(`/event/${event.id}`)}
+              />
             ))}
           </ScrollView>
         </View>

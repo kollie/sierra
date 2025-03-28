@@ -33,7 +33,10 @@ export function CommunityListItem({ community, onPress, onJoin }: CommunityListI
           title={community.joined ? "Joined" : "Join"} 
           variant={community.joined ? "outline" : "primary"}
           size="small"
-          onPress={onJoin}
+          onPress={(e) => {
+            e.stopPropagation();
+            onJoin && onJoin();
+          }}
           style={styles.joinButton}
         />
       </View>
